@@ -53,33 +53,12 @@
     <main id="top">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-backdrop" aria-hidden="true">
-          <div class="dashboard-window window-sales">
-            <div class="window-top"><span></span><span></span><span></span></div>
-            <div class="window-title">Business Monitor</div>
-            <div class="metric-row">
-              <b>ZMW 18,420</b>
-              <b>7 branches</b>
-              <b>96% synced</b>
-            </div>
-            <div class="chart-bars">
-              <span class="bar-a"></span>
-              <span class="bar-b"></span>
-              <span class="bar-c"></span>
-              <span class="bar-d"></span>
-              <span class="bar-e"></span>
-            </div>
-          </div>
-          <div class="dashboard-window window-pos">
-            <div class="receipt-lines">
-              <span></span><span></span><span></span>
-              <strong>ZMW 475.00</strong>
-            </div>
-          </div>
-          <div class="dashboard-window window-amms">
-            <p>Settlement</p>
-            <strong>COMPLETED</strong>
-            <small>Outstanding ZMW 0.00</small>
-          </div>
+          <figure class="screenshot-frame hero-screen">
+            <img src="/screenshots/cloud-amms-main.png" alt="" loading="eager" />
+          </figure>
+          <figure class="screenshot-frame hero-phone">
+            <img src="/screenshots/branch-agent-summary.jpg" alt="" loading="eager" />
+          </figure>
         </div>
 
         <div class="hero-content">
@@ -90,7 +69,8 @@
             inventory, offline operation, cash accountability, branch monitoring, and enterprise licensing in one system.
           </p>
           <div class="hero-actions">
-            <a href="#contact" class="button primary">Contact Sales</a>
+            <a href="mailto:sales@automaxpos.com?subject=Request%20D%65mo" class="button primary large">Request D&#101;mo</a>
+            <a href="#downloads" class="button secondary large">Download Brochure</a>
             <a href="#platform" class="button secondary">View Platform</a>
           </div>
           <dl class="hero-stats" aria-label="Platform highlights">
@@ -99,6 +79,15 @@
             <div><dt>AMMS</dt><dd>Cash settlement control</dd></div>
           </dl>
         </div>
+      </section>
+
+      <section class="trust-strip" aria-label="AutoMax POS trust markers">
+        <span>Offline First</span>
+        <span>Cloud Sync</span>
+        <span>AMMS</span>
+        <span>Multi-Branch</span>
+        <span>Zambia Developed</span>
+        <span>Enterprise Ready</span>
       </section>
 
       <section class="section intro-band" id="platform" aria-labelledby="platform-title">
@@ -132,6 +121,27 @@
         </div>
       </section>
 
+      <section class="section screenshot-showcase" aria-labelledby="screenshots-title">
+        <div class="section-heading compact">
+          <p class="eyebrow">Product Screenshots</p>
+          <h2 id="screenshots-title">Actual AutoMax screens from branch, cloud, and accountability workflows.</h2>
+        </div>
+        <div class="screenshot-grid">
+          <figure class="screenshot-card wide">
+            <img src="/screenshots/cloud-amms-main.png" alt="AutoMax Cloud AMMS dashboard showing branch accountability and outstanding cash." loading="lazy" />
+            <figcaption>Cloud Dashboard and AMMS branch accountability</figcaption>
+          </figure>
+          <figure class="screenshot-card">
+            <img src="/screenshots/cloud-users.png" alt="AutoMax Business Monitor user management screen." loading="lazy" />
+            <figcaption>Cloud user management and operational positions</figcaption>
+          </figure>
+          <figure class="screenshot-card phone-shot">
+            <img src="/screenshots/branch-agent-allocation.jpg" alt="AutoMax Branch Agent daily settlement allocation screen." loading="lazy" />
+            <figcaption>Branch Agent settlement allocation</figcaption>
+          </figure>
+        </div>
+      </section>
+
       <section class="section split-section" aria-labelledby="cloud-title">
         <div>
           <p class="eyebrow">Cloud Dashboard</p>
@@ -141,20 +151,10 @@
             outstanding cash, stock transfers, product activity, licensing state, and operational health.
           </p>
         </div>
-        <div class="screen-panel" aria-label="Business monitor sample">
-          <div class="screen-header">AutoMax POS Business Monitor</div>
-          <div class="screen-metrics">
-            <span>Today&apos;s Sales<br /><b>25,740.00</b></span>
-            <span>Outstanding<br /><b>0.00</b></span>
-            <span>Closed<br /><b>6</b></span>
-          </div>
-          <div class="screen-table">
-            <span>Branch</span><span>Status</span><span>Cash</span>
-            <strong>Main</strong><strong>Closed</strong><strong>0.00</strong>
-            <strong>Chongwe</strong><strong>Closed</strong><strong>0.00</strong>
-            <strong>Kafue</strong><strong>Open</strong><strong>320.00</strong>
-          </div>
-        </div>
+        <figure class="screenshot-card large-shot">
+          <img src="/screenshots/cloud-amms-main.png" alt="AutoMax POS Business Monitor AMMS dashboard." loading="lazy" />
+          <figcaption>Business Cloud monitoring with AMMS accountability</figcaption>
+        </figure>
       </section>
 
       <section class="section split-section reverse" aria-labelledby="agent-title">
@@ -166,17 +166,10 @@
             payment holders, business-day close, and operational identity using the same accountability model as the main branch.
           </p>
         </div>
-        <div class="phone-panel" aria-label="Daily settlement sample">
-          <div class="phone-speaker"></div>
-          <h3>Daily Settlement</h3>
-          <dl>
-            <div><dt>Gross Sales</dt><dd>ZMW 475.00</dd></div>
-            <div><dt>Allocated</dt><dd>ZMW 475.00</dd></div>
-            <div><dt>Outstanding</dt><dd>ZMW 0.00</dd></div>
-            <div><dt>Status</dt><dd>COMPLETED</dd></div>
-          </dl>
-          <button type="button">Close Business Day</button>
-        </div>
+        <figure class="screenshot-card phone-shot tall-phone">
+          <img src="/screenshots/branch-agent-close.jpg" alt="AutoMax Branch Agent business day close screen." loading="lazy" />
+          <figcaption>Branch Agent close-business workflow</figcaption>
+        </figure>
       </section>
 
       <section class="section pricing-section" id="pricing" aria-labelledby="pricing-title">
@@ -202,6 +195,19 @@
           <article><span>Local Backend</span><p>Main branch server and service installer</p></article>
           <article><span>Branch Agent</span><p>Android branch operations APK</p></article>
           <article><span>Cloud Monitor</span><p>Browser dashboard for business owners</p></article>
+        </div>
+      </section>
+
+      <section class="section cta-section" aria-labelledby="cta-title">
+        <div>
+          <p class="eyebrow">Launch Ready</p>
+          <h2 id="cta-title">Bring AutoMax POS into your business with a guided rollout.</h2>
+          <p>Talk to JP Max Technologies about branch count, licensing, installation, training, and the right deployment path for your operation.</p>
+        </div>
+        <div class="cta-actions">
+          <a href="mailto:sales@automaxpos.com?subject=Request%20D%65mo" class="button primary jumbo">Request D&#101;mo</a>
+          <a href="mailto:sales@automaxpos.com?subject=AutoMax%20POS%20Brochure" class="button secondary jumbo">Download Brochure</a>
+          <a href="mailto:sales@automaxpos.com" class="button secondary jumbo">Contact Sales</a>
         </div>
       </section>
 
@@ -241,8 +247,28 @@
     </main>
 
     <footer class="site-footer">
-      <span>© 2026 JP Max Technologies. AutoMax POS.</span>
-      <a href="#top">Back to top</a>
+      <div>
+        <strong>JP Max Technologies</strong>
+        <span>© 2026 JP Max Technologies. AutoMax POS.</span>
+      </div>
+      <div>
+        <strong>Product</strong>
+        <a href="#platform">Platform</a>
+        <a href="#features">Features</a>
+        <a href="#downloads">Downloads</a>
+      </div>
+      <div>
+        <strong>Documentation</strong>
+        <a href="mailto:support@automaxpos.com">Implementation Support</a>
+        <a href="mailto:licenses@automaxpos.com">Licensing</a>
+        <a href="https://cloud.automaxpos.com" rel="noopener">Cloud Login</a>
+      </div>
+      <div>
+        <strong>Support</strong>
+        <a href="mailto:support@automaxpos.com">support@automaxpos.com</a>
+        <a href="mailto:sales@automaxpos.com">sales@automaxpos.com</a>
+        <a href="https://automaxpos.com" rel="noopener">automaxpos.com</a>
+      </div>
     </footer>
   </body>
 </html>

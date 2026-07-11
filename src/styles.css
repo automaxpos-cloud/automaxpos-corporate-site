@@ -130,6 +130,25 @@ nav a:hover {
   color: var(--navy);
 }
 
+.button.large,
+.button.jumbo {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.button.large {
+  font-size: 16px;
+  min-height: 52px;
+  padding: 16px 22px;
+}
+
+.button.jumbo {
+  font-size: 18px;
+  min-height: 62px;
+  padding: 20px 26px;
+}
+
 .button.secondary:hover {
   border-color: #aebbd0;
   transform: translateY(-1px);
@@ -156,6 +175,44 @@ nav a:hover {
 .hero-backdrop {
   inset: 0;
   position: absolute;
+}
+
+.screenshot-frame,
+.screenshot-card {
+  background: #ffffff;
+  border: 1px solid rgba(17, 34, 58, 0.16);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  margin: 0;
+  overflow: hidden;
+}
+
+.screenshot-frame img,
+.screenshot-card img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.hero-screen {
+  animation: panel-rise 620ms ease both;
+  height: 380px;
+  padding: 10px;
+  position: absolute;
+  right: clamp(18px, 6vw, 88px);
+  top: 72px;
+  width: min(720px, 56vw);
+}
+
+.hero-phone {
+  animation: panel-rise 620ms ease 120ms both;
+  bottom: 58px;
+  height: 420px;
+  padding: 8px;
+  position: absolute;
+  right: min(48vw, 520px);
+  width: 214px;
 }
 
 .dashboard-window {
@@ -373,6 +430,28 @@ h3 {
   margin: 4px 0 0;
 }
 
+.trust-strip {
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.trust-strip span {
+  align-items: center;
+  background: #ffffff;
+  color: var(--navy);
+  display: flex;
+  font-size: 14px;
+  font-weight: 850;
+  justify-content: center;
+  min-height: 70px;
+  padding: 18px 12px;
+  text-align: center;
+}
+
 .section {
   padding: 84px clamp(22px, 7vw, 96px);
 }
@@ -430,6 +509,55 @@ h3 {
   color: var(--muted);
   font-size: 15px;
   line-height: 1.55;
+}
+
+.screenshot-showcase {
+  background: #f6f8fc;
+}
+
+.screenshot-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1.5fr 1fr 0.72fr;
+  margin-top: 36px;
+}
+
+.screenshot-card {
+  box-shadow: 0 18px 44px rgba(17, 34, 58, 0.1);
+}
+
+.screenshot-card img {
+  aspect-ratio: 16 / 9;
+}
+
+.screenshot-card.phone-shot img {
+  aspect-ratio: 9 / 16;
+}
+
+.screenshot-card.wide {
+  align-self: stretch;
+}
+
+.screenshot-card.large-shot {
+  min-height: 360px;
+}
+
+.screenshot-card.large-shot img {
+  aspect-ratio: 16 / 9;
+}
+
+.screenshot-card.tall-phone {
+  justify-self: center;
+  max-width: 360px;
+  width: 100%;
+}
+
+.screenshot-card figcaption {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 14px 16px;
 }
 
 .product-strip,
@@ -659,15 +787,47 @@ h3 {
   margin-top: 18px;
 }
 
-.site-footer {
+.cta-section {
   align-items: center;
+  background: #eef3fb;
+  display: grid;
+  gap: clamp(28px, 5vw, 72px);
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.7fr);
+}
+
+.cta-section p {
+  color: #344154;
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.cta-actions {
+  display: grid;
+  gap: 14px;
+}
+
+.site-footer {
   background: #0c1829;
   color: #d8e1ee;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: space-between;
+  display: grid;
+  gap: 26px;
+  grid-template-columns: 1.3fr repeat(3, 1fr);
   padding: 28px clamp(22px, 7vw, 96px);
+}
+
+.site-footer div {
+  display: grid;
+  gap: 10px;
+}
+
+.site-footer strong {
+  color: #ffffff;
+}
+
+.site-footer span,
+.site-footer a {
+  color: #b8c9e6;
+  font-size: 14px;
 }
 
 @keyframes panel-rise {
@@ -717,13 +877,17 @@ h3 {
   .module-grid,
   .pricing-grid,
   .feature-wall,
-  .support-grid {
+  .support-grid,
+  .screenshot-grid,
+  .trust-strip,
+  .site-footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .split-section,
   .download-section,
-  .about-section {
+  .about-section,
+  .cta-section {
     grid-template-columns: 1fr;
   }
 
@@ -759,6 +923,9 @@ h3 {
   .pricing-grid,
   .feature-wall,
   .support-grid,
+  .screenshot-grid,
+  .trust-strip,
+  .site-footer,
   .screen-metrics {
     grid-template-columns: 1fr;
   }

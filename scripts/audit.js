@@ -1,8 +1,24 @@
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 const dist = join(process.cwd(), "dist");
-const files = ["index.html", "styles.css", "favicon.svg", "robots.txt", "sitemap.xml", "og-image.svg"];
+
+async function listFiles(directory, prefix = "") {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const absolute = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listFiles(absolute, relative));
+    } else {
+      files.push(relative);
+    }
+  }
+  return files.sort();
+}
+
+const files = await listFiles(dist);
 const sizes = {};
 let total = 0;
 
@@ -14,7 +30,6 @@ for (const file of files) {
 
 const html = await readFile(join(dist, "index.html"), "utf8");
 const css = await readFile(join(dist, "styles.css"), "utf8");
-const anchors = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
 const internalLinks = [...html.matchAll(/href="#([^"]+)"/g)].map((match) => match[1]);
 const externalLinks = [...html.matchAll(/href="(https?:\/\/[^"]+)"/g)].map((match) => match[1]);
 const images = [...html.matchAll(/(?:src|href)="([^"]+\.(?:svg|png|jpg|jpeg|webp))"/g)].map((match) => match[1]);
@@ -35,7 +50,8 @@ console.log(JSON.stringify({
   internalAnchorCount: internalLinks.length,
   externalLinkCount: externalLinks.length,
   imageReferenceCount: images.length,
-  routeFiles: ["/", "/robots.txt", "/sitemap.xml", "/favicon.svg"],
+  screenshotCount: files.filter((file) => file.startsWith("screenshots/")).length,
+  routeFiles: ["/", "/robots.txt", "/sitemap.xml", "/favicon.svg", "/og-image.svg"],
   seo: {
     title: /<title>/.test(html),
     description: /name="description"/.test(html),

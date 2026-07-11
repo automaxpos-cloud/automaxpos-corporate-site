@@ -25,8 +25,16 @@ for (const link of internalLinks) {
   if (!anchorIds.has(link)) failures.push(`Broken anchor #${link}`);
 }
 
+const imageRefs = [...html.matchAll(/(?:src|href)="([^"]+\.(?:svg|png|jpg|jpeg|webp))"/g)]
+  .map((match) => match[1])
+  .filter((asset) => !asset.startsWith("http"));
+
 const assetPaths = ["styles.css", "favicon.svg", "robots.txt", "sitemap.xml", "og-image.svg"];
-for (const asset of assetPaths) {
+for (const image of imageRefs) {
+  assetPaths.push(image.replace(/^\//, ""));
+}
+
+for (const asset of [...new Set(assetPaths)]) {
   try {
     const info = await stat(join(dist, asset));
     if (!info.isFile() || info.size === 0) failures.push(`Invalid asset ${asset}`);
@@ -50,4 +58,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("Validation passed: metadata, routes, assets, robots, sitemap, and internal links.");
+console.log("Validation passed: metadata, routes, screenshots, assets, robots, sitemap, and internal links.");
