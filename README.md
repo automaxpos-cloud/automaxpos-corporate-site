@@ -25,12 +25,13 @@ Official public website for AutoMax POS by JP Max Technologies.
 - Support Center
 - Company/About JP Max Technologies
 
-## Development
+## Production Build
 
 ```bash
-npm install
-npm run dev
 npm run build
+npm test
+npm start
 ```
 
-This project uses vinext and the Sites-compatible Vite build plugin.
+The build is dependency-free and writes the production site to `dist/`.
+Use `npm start` after `npm run build` to serve the generated files locally.
