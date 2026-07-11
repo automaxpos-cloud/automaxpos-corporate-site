@@ -353,61 +353,77 @@ p {
   max-width: 760px;
 }
 
-.architecture-flow {
-  counter-reset: flow;
+.platform-card-grid {
   display: grid;
-  gap: 18px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  gap: 20px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
-.architecture-flow li {
-  align-items: center;
-  background: #ffffff;
+.platform-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  display: grid;
-  gap: 14px;
-  grid-template-columns: 48px 220px 1fr;
-  min-height: 92px;
-  padding: 22px;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 430px;
+  overflow: hidden;
+  padding: 18px;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
-.architecture-flow li::before {
+.platform-card:hover {
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 18px 50px rgba(14, 31, 53, 0.12);
+  transform: translateY(-4px);
+}
+
+.platform-card.accent {
+  background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+}
+
+.platform-shot {
+  box-shadow: 0 14px 38px rgba(14, 31, 53, 0.12);
+  margin-bottom: 18px;
+}
+
+.platform-shot.screen-frame img {
+  aspect-ratio: 4 / 3;
+  object-position: left top;
+}
+
+.compact-phone {
+  align-self: center;
+  max-width: 142px;
+  padding: 7px;
+}
+
+.compact-phone img {
+  height: 220px;
+}
+
+.platform-number {
   align-items: center;
   background: var(--navy);
   border-radius: 7px;
   color: #ffffff;
-  content: counter(flow, decimal-leading-zero);
-  counter-increment: flow;
-  display: flex;
-  font-size: 13px;
+  display: inline-flex;
+  font-size: 12px;
   font-weight: 900;
-  height: 40px;
+  height: 34px;
   justify-content: center;
-  width: 40px;
+  margin-bottom: 18px;
+  width: 42px;
 }
 
-.architecture-flow li:not(:last-child)::after {
-  background: var(--blue);
-  bottom: -19px;
-  content: "";
-  height: 20px;
-  left: 44px;
-  position: absolute;
-  width: 2px;
-}
-
-.architecture-flow strong {
+.platform-card h3 {
   color: var(--navy);
   font-size: 20px;
 }
 
-.architecture-flow span {
-  color: var(--muted);
-  line-height: 1.55;
+.platform-card p {
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 0;
 }
 
 .showcase {
@@ -699,6 +715,7 @@ ul {
     min-height: 460px;
   }
 
+  .platform-card-grid,
   .feature-grid,
   .download-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -706,6 +723,10 @@ ul {
 }
 
 @media (max-width: 760px) {
+  .site-header {
+    position: static;
+  }
+
   .hero {
     min-height: auto;
     padding-top: 48px;
@@ -731,14 +752,6 @@ ul {
     transform: none;
   }
 
-  .architecture-flow li {
-    grid-template-columns: 44px 1fr;
-  }
-
-  .architecture-flow li span {
-    grid-column: 2;
-  }
-
   .table-row {
     grid-template-columns: 1fr;
   }
@@ -747,6 +760,7 @@ ul {
     transform: none;
   }
 
+  .platform-card-grid,
   .download-grid,
   .feature-grid {
     grid-template-columns: 1fr;
@@ -790,5 +804,9 @@ ul {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .platform-card:hover {
+    transform: none;
   }
 }
