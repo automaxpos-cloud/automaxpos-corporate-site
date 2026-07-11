@@ -7,7 +7,7 @@ https://automaxpos.com
 The GitHub repository is the source of truth. Every successful push to `main`
 runs the production deployment workflow:
 
-Edit -> Validate -> Commit -> Push -> GitHub Actions -> Deploy to cPanel -> Verify automaxpos.com
+Edit -> Validate -> Commit -> Push -> GitHub Actions -> Build -> SFTP upload -> Verify automaxpos.com
 
 ## Required GitHub Actions Secrets
 
@@ -16,62 +16,42 @@ Create these in:
 `GitHub repository -> Settings -> Secrets and variables -> Actions -> New repository secret`
 
 - `CPANEL_HOST`
-  - The SSH hostname for the hosting account.
-  - Obtain from cPanel, hosting welcome email, or the hosting provider's SSH/Terminal or FTP Accounts page.
+  - The SFTP hostname for the hosting account.
+  - Current production value: `premium176.web-hosting.com`.
 
 - `CPANEL_PORT`
-  - The SSH port.
-  - For the current Namecheap Stellar Plus account, use `21098`.
+  - The SFTP port.
+  - Current Namecheap Stellar Plus value: `21098`.
 
 - `CPANEL_USERNAME`
-  - The cPanel or SSH username with access to the production website directory.
+  - The cPanel or SFTP username with access to the production website directory.
+  - Current production username: `autosyyh`.
 
-- `CPANEL_SSH_PRIVATE_KEY`
-  - The private key authorized for SSH access to the cPanel account.
-  - Store the full private key value, including the `BEGIN` and `END` lines.
+- `CPANEL_PASSWORD`
+  - The SFTP password for the cPanel account.
   - Do not commit this value to the repository.
 
-- `CPANEL_SSH_PASSPHRASE`
-  - Optional.
-  - Required only when the private key is protected by a passphrase.
-
 - `CPANEL_REMOTE_PATH`
-  - The remote Git checkout directory that serves `https://automaxpos.com`.
-  - For the current production plan, this is expected to be `/home/autosyyh/public_html` or the exact domain document root from cPanel.
-
-## Required Server Setup
-
-The cPanel document root must contain a Git checkout of:
-
-`https://github.com/automaxpos-cloud/automaxpos-corporate-site`
-
-The workflow runs this sequence on the server:
-
-```bash
-cd "$CPANEL_REMOTE_PATH"
-git fetch origin main
-git reset --hard origin/main
-npm install # only when node_modules is missing
-npm run build
-rsync dist/ ./ # preserves .git, source files, node_modules, .htaccess, and .well-known
-```
-
-The final `rsync` publishes the generated static files to the document root while preserving the server-side Git checkout and cPanel configuration files.
+  - The remote directory that serves `https://automaxpos.com`.
+  - Current production value: `/home/autosyyh/public_html`.
 
 ## Deployment Behavior
 
 The workflow:
 
-- builds the static website;
+- builds the static website in GitHub Actions;
 - runs validation and audit;
 - aborts deployment if validation fails;
 - writes `deployment.json` into the production build for commit verification;
-- publishes the generated `dist/` contents into the document root;
+- uploads the generated `dist/` contents to `/home/autosyyh/public_html` over SFTP;
 - deletes obsolete generated website files that are no longer in `dist/`;
-- preserves `.git`, source folders, `node_modules`, `.htaccess`, and `.well-known/` on the server;
+- preserves `.htaccess` and `.well-known/` on the server;
 - verifies `https://automaxpos.com` returns HTTP 200;
 - verifies `https://automaxpos.com/deployment.json` contains the deployed commit.
 
 ## Production Notes
+
+The cPanel server is treated as a static file host. It does not need to run Git,
+Node.js, npm, or shell deployment scripts.
 
 Keep `.htaccess` and SSL challenge files managed on the server unless they are intentionally added to this repository.

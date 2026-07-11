@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate-and-deploy:
-    name: Validate and deploy via SSH
+    name: Validate and deploy via SFTP
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,19 +35,19 @@ jobs:
       - name: Audit production build
         run: npm run audit
 
-      - name: Validate cPanel SSH secrets
+      - name: Validate cPanel SFTP secrets
         shell: bash
         env:
           CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
           CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
           CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
-          CPANEL_SSH_PRIVATE_KEY: ${{ secrets.CPANEL_SSH_PRIVATE_KEY }}
+          CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
           CPANEL_REMOTE_PATH: ${{ secrets.CPANEL_REMOTE_PATH }}
         run: |
           missing=0
-          for name in CPANEL_HOST CPANEL_PORT CPANEL_USERNAME CPANEL_SSH_PRIVATE_KEY CPANEL_REMOTE_PATH; do
+          for name in CPANEL_HOST CPANEL_PORT CPANEL_USERNAME CPANEL_PASSWORD CPANEL_REMOTE_PATH; do
             if [ -z "${!name}" ]; then
-              echo "::error::$name GitHub Actions secret is required for production deployment."
+              echo "::error::$name GitHub Actions secret is required for production SFTP deployment."
               missing=1
             fi
           done
@@ -55,150 +55,59 @@ jobs:
             exit 1
           fi
 
-      - name: Configure SSH key
+      - name: Write deployment metadata
         shell: bash
-        env:
-          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
-          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
-          CPANEL_SSH_PRIVATE_KEY: ${{ secrets.CPANEL_SSH_PRIVATE_KEY }}
-          CPANEL_SSH_PASSPHRASE: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
         run: |
           set -euo pipefail
+          deployed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          cat > dist/deployment.json <<EOF
+          {
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "deployed_at": "$deployed_at",
+            "repository": "${{ github.repository }}",
+            "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "method": "sftp"
+          }
+          EOF
+          echo "deployed_at=$deployed_at" >> "$GITHUB_OUTPUT"
 
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+      - name: Install SFTP deploy tool
+        run: sudo apt-get update && sudo apt-get install -y lftp
 
-          python3 -c 'import os, pathlib; key = os.environ["CPANEL_SSH_PRIVATE_KEY"]; key = key.replace("\\n", "\n") if "\\n" in key and "\n" not in key else key; key = key.replace("\r\n", "\n").replace("\r", "\n").strip() + "\n"; pathlib.Path.home().joinpath(".ssh", "cpanel_deploy_key").write_text(key, encoding="utf-8", newline="\n")'
-          chmod 600 ~/.ssh/cpanel_deploy_key
-
-          ssh-keyscan -p "$CPANEL_PORT" -H "$CPANEL_HOST" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-          key_check_log="$(mktemp)"
-          if ssh-keygen -y -P "" -f ~/.ssh/cpanel_deploy_key > /dev/null 2>"$key_check_log"; then
-            echo "SSH private key parsed successfully without a passphrase."
-          else
-            if grep -qi 'passphrase\|decrypt' "$key_check_log"; then
-              if [ -z "$CPANEL_SSH_PASSPHRASE" ]; then
-                echo "::error::CPANEL_SSH_PRIVATE_KEY is encrypted. CPANEL_SSH_PASSPHRASE is required for this key."
-                cat "$key_check_log"
-                exit 1
-              fi
-              if ssh-keygen -y -P "$CPANEL_SSH_PASSPHRASE" -f ~/.ssh/cpanel_deploy_key > /dev/null 2>"$key_check_log"; then
-                echo "SSH private key parsed successfully with CPANEL_SSH_PASSPHRASE."
-                askpass_file="$HOME/.ssh/cpanel_askpass.sh"
-                printf '%s\n' '#!/usr/bin/env bash' 'printf "%s\n" "$CPANEL_SSH_PASSPHRASE"' > "$askpass_file"
-                chmod 700 "$askpass_file"
-                {
-                  echo "SSH_ASKPASS=$askpass_file"
-                  echo "SSH_ASKPASS_REQUIRE=force"
-                  echo "DISPLAY=:0"
-                } >> "$GITHUB_ENV"
-              else
-                echo "::error::CPANEL_SSH_PASSPHRASE did not decrypt CPANEL_SSH_PRIVATE_KEY."
-                cat "$key_check_log"
-                exit 1
-              fi
-            else
-              echo "::error::CPANEL_SSH_PRIVATE_KEY is not a parseable OpenSSH private key after newline normalization."
-              cat "$key_check_log"
-              exit 1
-            fi
-          fi
-          rm -f "$key_check_log"
-
-          ssh-keygen -lf ~/.ssh/known_hosts
-
-      - name: Deploy on cPanel over SSH
+      - name: Deploy production files over SFTP
         id: deploy
         shell: bash
         env:
           CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
           CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
           CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
+          CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
           CPANEL_REMOTE_PATH: ${{ secrets.CPANEL_REMOTE_PATH }}
-          CPANEL_SSH_PASSPHRASE: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
-          DEPLOY_SHA: ${{ github.sha }}
-          DEPLOY_BRANCH: ${{ github.ref_name }}
-          DEPLOY_REPOSITORY: ${{ github.repository }}
-          DEPLOY_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-
-          remote_script=$(cat <<'REMOTE_SCRIPT'
-          set -euo pipefail
-
-          echo "[deploy] cd $CPANEL_REMOTE_PATH"
-          cd "$CPANEL_REMOTE_PATH"
-
-          echo "[deploy] git fetch origin main"
-          git fetch origin main
-
-          echo "[deploy] git reset --hard origin/main"
-          git reset --hard origin/main
-
-          if [ ! -d node_modules ]; then
-            echo "[deploy] npm install"
-            npm install
-          else
-            echo "[deploy] node_modules exists; skipping npm install"
-          fi
-
-          echo "[deploy] npm run build"
-          npm run build
-
-          deployed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          cat > dist/deployment.json <<EOF
-          {
-            "commit": "$DEPLOY_SHA",
-            "branch": "$DEPLOY_BRANCH",
-            "deployed_at": "$deployed_at",
-            "repository": "$DEPLOY_REPOSITORY",
-            "workflow_run": "$DEPLOY_RUN_URL"
-          }
-          EOF
 
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
 
-          echo "[deploy] publish dist/ into $CPANEL_REMOTE_PATH"
-          rsync -a --delete \
-            --exclude ".git/**" \
-            --exclude ".github/**" \
-            --exclude ".htaccess" \
-            --exclude ".well-known/**" \
-            --exclude "docs/**" \
-            --exclude "node_modules/**" \
-            --exclude "package.json" \
-            --exclude "package-lock.json" \
-            --exclude "public/**" \
-            --exclude "README.md" \
-            --exclude "scripts/**" \
-            --exclude "src/**" \
-            --exclude "dist/**" \
-            --exclude "server/**" \
-            dist/ ./
-
-          echo "DEPLOY_FILES_UPLOADED=$files_uploaded"
-          echo "DEPLOY_BYTES_UPLOADED=$bytes_uploaded"
-          echo "DEPLOY_TIMESTAMP=$deployed_at"
-          REMOTE_SCRIPT
-          )
-
-          output=$(ssh \
+          lftp \
+            -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" \
             -p "$CPANEL_PORT" \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            -o IdentityFile="$HOME/.ssh/cpanel_deploy_key" \
-            -o IdentitiesOnly=yes \
-            -o BatchMode=no \
-            "$CPANEL_USERNAME@$CPANEL_HOST" \
-            "CPANEL_REMOTE_PATH='$CPANEL_REMOTE_PATH' DEPLOY_SHA='$DEPLOY_SHA' DEPLOY_BRANCH='$DEPLOY_BRANCH' DEPLOY_REPOSITORY='$DEPLOY_REPOSITORY' DEPLOY_RUN_URL='$DEPLOY_RUN_URL' bash -s" <<< "$remote_script")
+            "sftp://$CPANEL_HOST" <<LFTP
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 30
+          set sftp:auto-confirm yes
+          mirror --reverse --delete --verbose \
+            --exclude-glob .htaccess \
+            --exclude-glob .well-known/ \
+            --exclude-glob .well-known/** \
+            dist "$CPANEL_REMOTE_PATH"
+          bye
+          LFTP
 
-          echo "$output"
-          echo "files_uploaded=$(echo "$output" | awk -F= '/DEPLOY_FILES_UPLOADED=/{print $2}' | tail -n 1)" >> "$GITHUB_OUTPUT"
-          echo "bytes_uploaded=$(echo "$output" | awk -F= '/DEPLOY_BYTES_UPLOADED=/{print $2}' | tail -n 1)" >> "$GITHUB_OUTPUT"
-          echo "deployed_at=$(echo "$output" | awk -F= '/DEPLOY_TIMESTAMP=/{print $2}' | tail -n 1)" >> "$GITHUB_OUTPUT"
+          echo "files_uploaded=$files_uploaded" >> "$GITHUB_OUTPUT"
+          echo "bytes_uploaded=$bytes_uploaded" >> "$GITHUB_OUTPUT"
 
       - name: Verify production website
         shell: bash
@@ -232,11 +141,11 @@ jobs:
             echo "- Commit: \`${{ github.sha }}\`"
             echo "- Branch: \`${{ github.ref_name }}\`"
             echo "- Production URL: https://automaxpos.com"
-            echo "- Deployment method: SSH -> git fetch/reset -> npm build -> publish dist"
+            echo "- Deployment method: SFTP mirror of local production build"
+            echo "- Remote path: \`${{ secrets.CPANEL_REMOTE_PATH }}\`"
             echo "- Files uploaded: \`${{ steps.deploy.outputs.files_uploaded }}\`"
             echo "- Bytes uploaded: \`${{ steps.deploy.outputs.bytes_uploaded }}\`"
-            echo "- Timestamp: \`${{ steps.deploy.outputs.deployed_at }}\`"
             echo "- Validation: build, tests, audit, HTTP 200, deployment metadata"
             echo ""
-            echo ".htaccess, .well-known, repository source files, and node_modules are preserved on the server."
+            echo ".htaccess and .well-known are preserved on the server."
           } >> "$GITHUB_STEP_SUMMARY"
