@@ -4,7 +4,6 @@ import { join } from "node:path";
 const root = process.cwd();
 const src = join(root, "src");
 const publicDir = join(root, "public");
-const hostingDir = join(root, ".openai");
 const dist = join(root, "dist");
 const serverSource = join(src, "server");
 const serverDist = join(dist, "server");
@@ -35,7 +34,6 @@ await cp(src, serverPublic, { recursive: true });
 await cp(publicDir, serverPublic, { recursive: true });
 await rm(join(serverPublic, "server"), { recursive: true, force: true });
 await cp(serverSource, serverDist, { recursive: true });
-await cp(hostingDir, join(dist, ".openai"), { recursive: true });
 
 const files = await listFiles(dist);
 let totalBytes = 0;

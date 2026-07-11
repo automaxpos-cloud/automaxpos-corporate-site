@@ -1,0 +1,141 @@
+name: Deploy Corporate Website to cPanel
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-cpanel
+  cancel-in-progress: false
+
+jobs:
+  build-validate-deploy:
+    name: Build, validate, deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build production site
+        run: npm run build
+
+      - name: Validate site
+        run: npm test
+
+      - name: Audit production build
+        run: npm run audit
+
+      - name: Add deployment metadata
+        shell: bash
+        run: |
+          cat > dist/deployment.json <<EOF
+          {
+            "commit": "${GITHUB_SHA}",
+            "branch": "${GITHUB_REF_NAME}",
+            "deployed_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "repository": "${GITHUB_REPOSITORY}",
+            "workflow_run": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          }
+          EOF
+
+      - name: Validate cPanel secrets
+        shell: bash
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
+          CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
+          CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
+          CPANEL_REMOTE_PATH: ${{ secrets.CPANEL_REMOTE_PATH }}
+        run: |
+          missing=0
+          for name in CPANEL_HOST CPANEL_PORT CPANEL_USERNAME CPANEL_PASSWORD CPANEL_REMOTE_PATH; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name GitHub Actions secret is required for production deployment."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Install deployment client
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Deploy production build to cPanel
+        id: deploy
+        shell: bash
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
+          CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
+          CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
+          CPANEL_REMOTE_PATH: ${{ secrets.CPANEL_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          before_count=$(find dist -type f | wc -l | tr -d ' ')
+          before_bytes=$(du -sb dist | awk '{print $1}')
+          echo "Uploading $before_count files ($before_bytes bytes) to $CPANEL_HOST:$CPANEL_REMOTE_PATH"
+
+          lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "sftp://$CPANEL_HOST" <<EOF
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 30
+          set xfer:clobber on
+          mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ dist/ "$CPANEL_REMOTE_PATH"
+          bye
+          EOF
+
+          {
+            echo "files_uploaded=$before_count"
+            echo "bytes_uploaded=$before_bytes"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify production website
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=$(curl -L -s -o /tmp/automax-home.html -w "%{http_code}" https://automaxpos.com)
+          echo "automaxpos.com HTTP status: $status"
+          if [ "$status" != "200" ]; then
+            echo "::error::https://automaxpos.com returned HTTP $status"
+            exit 1
+          fi
+
+          meta_status=$(curl -L -s -o /tmp/automax-deployment.json -w "%{http_code}" https://automaxpos.com/deployment.json)
+          echo "deployment.json HTTP status: $meta_status"
+          if [ "$meta_status" != "200" ]; then
+            echo "::error::https://automaxpos.com/deployment.json returned HTTP $meta_status"
+            exit 1
+          fi
+          if ! grep -q "$GITHUB_SHA" /tmp/automax-deployment.json; then
+            echo "::error::deployment.json does not contain commit $GITHUB_SHA"
+            cat /tmp/automax-deployment.json
+            exit 1
+          fi
+
+      - name: Deployment summary
+        shell: bash
+        run: |
+          {
+            echo "## AutoMax POS Corporate Website Deployment"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Branch: \`${GITHUB_REF_NAME}\`"
+            echo "- Production URL: https://automaxpos.com"
+            echo "- Files uploaded: \`${{ steps.deploy.outputs.files_uploaded }}\`"
+            echo "- Bytes uploaded: \`${{ steps.deploy.outputs.bytes_uploaded }}\`"
+            echo "- Timestamp: \`$(date -u +"%Y-%m-%dT%H:%M:%SZ")\`"
+            echo "- Validation: build, tests, audit, HTTP 200, deployment metadata"
+            echo ""
+            echo "Obsolete remote files are deleted by the deployment mirror, while .htaccess and .well-known are preserved."
+          } >> "$GITHUB_STEP_SUMMARY"
