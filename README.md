@@ -1,0 +1,36 @@
+# AutoMax POS Corporate Website
+
+Official public website for AutoMax POS by JP Max Technologies.
+
+## Public Identity
+
+- Company: JP Max Technologies
+- Product: AutoMax POS
+- Website: https://automaxpos.com
+- Business Cloud: https://cloud.automaxpos.com
+- Vendor Admin: https://admin.automaxpos.com
+- Support: support@automaxpos.com
+- Sales: sales@automaxpos.com
+- Licensing: licenses@automaxpos.com
+
+## Site Contents
+
+- Product landing page
+- Platform overview
+- Feature summary
+- Cloud Dashboard overview
+- Branch Agent overview
+- Pricing overview
+- Downloads overview
+- Support Center
+- Company/About JP Max Technologies
+
+## Development
+
+```bash
+npm install
+npm run dev
+npm run build
+```
+
+This project uses vinext and the Sites-compatible Vite build plugin.
