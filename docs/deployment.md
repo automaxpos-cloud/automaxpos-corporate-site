@@ -16,23 +16,41 @@ Create these in:
 `GitHub repository -> Settings -> Secrets and variables -> Actions -> New repository secret`
 
 - `CPANEL_HOST`
-  - The SFTP hostname for the hosting account.
-  - Obtain from cPanel, hosting welcome email, or the hosting provider's FTP/SFTP Accounts page.
+  - The SSH hostname for the hosting account.
+  - Obtain from cPanel, hosting welcome email, or the hosting provider's SSH/Terminal or FTP Accounts page.
 
 - `CPANEL_PORT`
-  - The SFTP port, usually `22`.
-  - If the host only supports FTPS, use the provider's FTPS details and update the workflow protocol before deployment.
+  - The SSH port, usually `22`.
 
 - `CPANEL_USERNAME`
-  - The cPanel or SFTP username with access to the production website directory.
+  - The cPanel or SSH username with access to the production website directory.
 
 - `CPANEL_PASSWORD`
-  - The matching SFTP password.
+  - The matching SSH password.
   - Do not commit this value to the repository.
 
 - `CPANEL_REMOTE_PATH`
-  - The remote directory that serves `https://automaxpos.com`.
-  - Common values are `/public_html`, `/home/<cpanel-user>/public_html`, or a domain-specific document root.
+  - The remote Git checkout directory that serves `https://automaxpos.com`.
+  - For the current production plan, this is expected to be `/home/autosyyh/public_html` or the exact domain document root from cPanel.
+
+## Required Server Setup
+
+The cPanel document root must contain a Git checkout of:
+
+`https://github.com/automaxpos-cloud/automaxpos-corporate-site`
+
+The workflow runs this sequence on the server:
+
+```bash
+cd "$CPANEL_REMOTE_PATH"
+git fetch origin main
+git reset --hard origin/main
+npm install # only when node_modules is missing
+npm run build
+rsync dist/ ./ # preserves .git, source files, node_modules, .htaccess, and .well-known
+```
+
+The final `rsync` publishes the generated static files to the document root while preserving the server-side Git checkout and cPanel configuration files.
 
 ## Deployment Behavior
 
@@ -42,9 +60,9 @@ The workflow:
 - runs validation and audit;
 - aborts deployment if validation fails;
 - writes `deployment.json` into the production build for commit verification;
-- uploads only the generated `dist/` contents;
-- deletes obsolete remote files that are no longer in `dist/`;
-- preserves `.htaccess` and `.well-known/` on the server;
+- publishes the generated `dist/` contents into the document root;
+- deletes obsolete generated website files that are no longer in `dist/`;
+- preserves `.git`, source folders, `node_modules`, `.htaccess`, and `.well-known/` on the server;
 - verifies `https://automaxpos.com` returns HTTP 200;
 - verifies `https://automaxpos.com/deployment.json` contains the deployed commit.
 
