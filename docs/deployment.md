@@ -20,14 +20,20 @@ Create these in:
   - Obtain from cPanel, hosting welcome email, or the hosting provider's SSH/Terminal or FTP Accounts page.
 
 - `CPANEL_PORT`
-  - The SSH port, usually `22`.
+  - The SSH port.
+  - For the current Namecheap Stellar Plus account, use `21098`.
 
 - `CPANEL_USERNAME`
   - The cPanel or SSH username with access to the production website directory.
 
-- `CPANEL_PASSWORD`
-  - The matching SSH password.
+- `CPANEL_SSH_PRIVATE_KEY`
+  - The private key authorized for SSH access to the cPanel account.
+  - Store the full private key value, including the `BEGIN` and `END` lines.
   - Do not commit this value to the repository.
+
+- `CPANEL_SSH_PASSPHRASE`
+  - Optional.
+  - Required only when the private key is protected by a passphrase.
 
 - `CPANEL_REMOTE_PATH`
   - The remote Git checkout directory that serves `https://automaxpos.com`.
