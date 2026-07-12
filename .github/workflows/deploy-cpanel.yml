@@ -89,48 +89,71 @@ jobs:
 
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
+          transfer_method=""
           transfer_log="$(mktemp)"
 
-          echo "Attempting SFTP deployment to $CPANEL_HOST:$CPANEL_PORT"
-          if lftp \
-            -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" \
-            -p "$CPANEL_PORT" \
-            "sftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
+          attempt_sftp() {
+            local host="$1"
+            local user="$2"
+            local label="sftp:$user@$host:$CPANEL_PORT"
+            echo "Attempting $label"
+            : > "$transfer_log"
+            if lftp -u "$user","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "sftp://$host" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
-          set net:max-retries 2
+          set net:max-retries 1
           set net:timeout 30
           set sftp:auto-confirm yes
-          mirror --reverse --delete --verbose \
-            --exclude-glob .htaccess \
-            --exclude-glob .well-known/ \
-            --exclude-glob .well-known/** \
-            dist "$CPANEL_REMOTE_PATH"
+          mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** dist "$CPANEL_REMOTE_PATH"
           bye
           LFTP
-          then
-            transfer_method="sftp"
-          else
-            echo "SFTP deployment failed; attempting explicit FTPS fallback on port 21."
+            then
+              transfer_method="$label"
+              return 0
+            fi
+            echo "$label failed:"
             cat "$transfer_log"
+            return 1
+          }
+
+          attempt_ftps() {
+            local host="$1"
+            local user="$2"
+            local label="ftps:$user@$host:21"
+            echo "Attempting $label"
             : > "$transfer_log"
-            lftp \
-              -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" \
-              -p 21 \
-              "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
+            if lftp -u "$user","$CPANEL_PASSWORD" -p 21 "ftp://$host" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
-          set net:max-retries 2
+          set net:max-retries 1
           set net:timeout 30
           set ftp:ssl-force yes
           set ftp:ssl-protect-data yes
           set ssl:verify-certificate no
-          mirror --reverse --delete --verbose \
-            --exclude-glob .htaccess \
-            --exclude-glob .well-known/ \
-            --exclude-glob .well-known/** \
-            dist "$CPANEL_REMOTE_PATH"
+          mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** dist "$CPANEL_REMOTE_PATH"
           bye
           LFTP
-            transfer_method="ftps"
+            then
+              transfer_method="$label"
+              return 0
+            fi
+            echo "$label failed:"
+            cat "$transfer_log"
+            return 1
+          }
+
+          public_host="automaxpos.com"
+          domain_user="$CPANEL_USERNAME@$public_host"
+
+          if attempt_sftp "$CPANEL_HOST" "$CPANEL_USERNAME" ||
+             attempt_sftp "$public_host" "$CPANEL_USERNAME" ||
+             attempt_ftps "$CPANEL_HOST" "$CPANEL_USERNAME" ||
+             attempt_ftps "$public_host" "$CPANEL_USERNAME" ||
+             attempt_ftps "$CPANEL_HOST" "$domain_user" ||
+             attempt_ftps "$public_host" "$domain_user"; then
+            echo "Deployment transfer succeeded using $transfer_method."
+          else
+            echo "::error::All cPanel SFTP/FTPS deployment attempts failed."
+            rm -f "$transfer_log"
+            exit 1
           fi
 
           cat "$transfer_log"
