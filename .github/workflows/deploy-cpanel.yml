@@ -72,10 +72,10 @@ jobs:
           EOF
           echo "deployed_at=$deployed_at" >> "$GITHUB_OUTPUT"
 
-      - name: Install SFTP deploy tool
+      - name: Install transfer deploy tool
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Deploy production files over SFTP
+      - name: Deploy production files over SFTP or FTPS
         id: deploy
         shell: bash
         env:
@@ -89,11 +89,13 @@ jobs:
 
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
+          transfer_log="$(mktemp)"
 
-          lftp \
+          echo "Attempting SFTP deployment to $CPANEL_HOST:$CPANEL_PORT"
+          if lftp \
             -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" \
             -p "$CPANEL_PORT" \
-            "sftp://$CPANEL_HOST" <<LFTP
+            "sftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
           set net:max-retries 2
           set net:timeout 30
@@ -105,9 +107,38 @@ jobs:
             dist "$CPANEL_REMOTE_PATH"
           bye
           LFTP
+          then
+            transfer_method="sftp"
+          else
+            echo "SFTP deployment failed; attempting explicit FTPS fallback on port 21."
+            cat "$transfer_log"
+            : > "$transfer_log"
+            lftp \
+              -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" \
+              -p 21 \
+              "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 30
+          set ftp:ssl-force yes
+          set ftp:ssl-protect-data yes
+          set ssl:verify-certificate no
+          mirror --reverse --delete --verbose \
+            --exclude-glob .htaccess \
+            --exclude-glob .well-known/ \
+            --exclude-glob .well-known/** \
+            dist "$CPANEL_REMOTE_PATH"
+          bye
+          LFTP
+            transfer_method="ftps"
+          fi
+
+          cat "$transfer_log"
+          rm -f "$transfer_log"
 
           echo "files_uploaded=$files_uploaded" >> "$GITHUB_OUTPUT"
           echo "bytes_uploaded=$bytes_uploaded" >> "$GITHUB_OUTPUT"
+          echo "transfer_method=$transfer_method" >> "$GITHUB_OUTPUT"
 
       - name: Verify production website
         shell: bash
@@ -141,7 +172,7 @@ jobs:
             echo "- Commit: \`${{ github.sha }}\`"
             echo "- Branch: \`${{ github.ref_name }}\`"
             echo "- Production URL: https://automaxpos.com"
-            echo "- Deployment method: SFTP mirror of local production build"
+            echo "- Deployment method: \`${{ steps.deploy.outputs.transfer_method }}\` mirror of local production build"
             echo "- Remote path: \`${{ secrets.CPANEL_REMOTE_PATH }}\`"
             echo "- Files uploaded: \`${{ steps.deploy.outputs.files_uploaded }}\`"
             echo "- Bytes uploaded: \`${{ steps.deploy.outputs.bytes_uploaded }}\`"

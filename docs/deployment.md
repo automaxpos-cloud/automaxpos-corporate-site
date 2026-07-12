@@ -7,7 +7,7 @@ https://automaxpos.com
 The GitHub repository is the source of truth. Every successful push to `main`
 runs the production deployment workflow:
 
-Edit -> Validate -> Commit -> Push -> GitHub Actions -> Build -> SFTP upload -> Verify automaxpos.com
+Edit -> Validate -> Commit -> Push -> GitHub Actions -> Build -> SFTP/FTPS upload -> Verify automaxpos.com
 
 ## Required GitHub Actions Secrets
 
@@ -22,6 +22,7 @@ Create these in:
 - `CPANEL_PORT`
   - The SFTP port.
   - Current Namecheap Stellar Plus value: `21098`.
+  - If SFTP authentication is rejected, the workflow automatically falls back to explicit FTPS on port `21`.
 
 - `CPANEL_USERNAME`
   - The cPanel or SFTP username with access to the production website directory.
@@ -43,7 +44,7 @@ The workflow:
 - runs validation and audit;
 - aborts deployment if validation fails;
 - writes `deployment.json` into the production build for commit verification;
-- uploads the generated `dist/` contents to `/home/autosyyh/public_html` over SFTP;
+- uploads the generated `dist/` contents to `/home/autosyyh/public_html` over SFTP, with explicit FTPS fallback;
 - deletes obsolete generated website files that are no longer in `dist/`;
 - preserves `.htaccess` and `.well-known/` on the server;
 - verifies `https://automaxpos.com` returns HTTP 200;
