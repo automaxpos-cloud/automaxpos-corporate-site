@@ -2,7 +2,7 @@
   <rect width="1200" height="630" fill="#11223A"/>
   <rect x="74" y="74" width="1052" height="482" rx="28" fill="#FFFFFF"/>
   <text x="116" y="194" fill="#11223A" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="800">AutoMax POS</text>
-  <text x="118" y="264" fill="#344154" font-family="Arial, Helvetica, sans-serif" font-size="34">Retail POS, branch control, AMMS settlement, and cloud monitoring.</text>
+  <text x="118" y="264" fill="#344154" font-family="Arial, Helvetica, sans-serif" font-size="34">Offline sales, secure cloud visibility, branches, and cash control.</text>
   <rect x="118" y="340" width="256" height="88" rx="10" fill="#EAF1FF"/>
   <text x="146" y="392" fill="#2463EB" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700">POS Client</text>
   <rect x="408" y="340" width="256" height="88" rx="10" fill="#EAF7F2"/>
