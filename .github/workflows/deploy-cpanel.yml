@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate-and-deploy:
-    name: Validate and deploy via SFTP
+    name: Validate and deploy via FTPS
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,19 +35,16 @@ jobs:
       - name: Audit production build
         run: npm run audit
 
-      - name: Validate cPanel SFTP secrets
+      - name: Validate cPanel FTPS secrets
         shell: bash
         env:
-          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
-          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
           CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
           CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
-          CPANEL_REMOTE_PATH: ${{ secrets.CPANEL_REMOTE_PATH }}
         run: |
           missing=0
-          for name in CPANEL_HOST CPANEL_PORT CPANEL_USERNAME CPANEL_PASSWORD CPANEL_REMOTE_PATH; do
+          for name in CPANEL_USERNAME CPANEL_PASSWORD; do
             if [ -z "${!name}" ]; then
-              echo "::error::$name GitHub Actions secret is required for production SFTP deployment."
+              echo "::error::$name GitHub Actions secret is required for production FTPS deployment."
               missing=1
             fi
           done
@@ -67,7 +64,7 @@ jobs:
             "deployed_at": "$deployed_at",
             "repository": "${{ github.repository }}",
             "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "method": "sftp"
+            "method": "ftps"
           }
           EOF
           echo "deployed_at=$deployed_at" >> "$GITHUB_OUTPUT"
@@ -75,93 +72,47 @@ jobs:
       - name: Install transfer deploy tool
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Deploy production files over SFTP or FTPS
+      - name: Deploy production files over FTPS
         id: deploy
         shell: bash
         env:
-          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
-          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
           CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
           CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
-          CPANEL_REMOTE_PATH: ${{ secrets.CPANEL_REMOTE_PATH }}
         run: |
           set -euo pipefail
 
+          CPANEL_HOST="premium176.web-hosting.com"
+          CPANEL_PORT="21"
+          CPANEL_REMOTE_PATH="/home/autosyyh/public_html"
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
-          transfer_method=""
           transfer_log="$(mktemp)"
 
-          attempt_sftp() {
-            local host="$1"
-            local user="$2"
-            local label="sftp:$user@$host:$CPANEL_PORT"
-            echo "Attempting $label"
-            : > "$transfer_log"
-            if lftp -u "$user","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "sftp://$host" >"$transfer_log" 2>&1 <<LFTP
-          set cmd:fail-exit yes
-          set net:max-retries 1
-          set net:timeout 30
-          set sftp:auto-confirm yes
-          mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** dist "$CPANEL_REMOTE_PATH"
-          bye
-          LFTP
-            then
-              transfer_method="$label"
-              return 0
-            fi
-            echo "$label failed:"
-            cat "$transfer_log"
-            return 1
-          }
+          echo "Deploying production build via explicit FTPS."
+          echo "Host: $CPANEL_HOST"
+          echo "Port: $CPANEL_PORT"
+          echo "Username: $CPANEL_USERNAME"
+          echo "Remote path: $CPANEL_REMOTE_PATH"
 
-          attempt_ftps() {
-            local host="$1"
-            local user="$2"
-            local label="ftps:$user@$host:21"
-            echo "Attempting $label"
-            : > "$transfer_log"
-            if lftp -u "$user","$CPANEL_PASSWORD" -p 21 "ftp://$host" >"$transfer_log" 2>&1 <<LFTP
+          lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
-          set net:max-retries 1
-          set net:timeout 30
           set ftp:ssl-force yes
           set ftp:ssl-protect-data yes
+          set ftp:passive-mode yes
+          set net:max-retries 2
+          set net:timeout 30
           set ssl:verify-certificate no
           mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** dist "$CPANEL_REMOTE_PATH"
           bye
           LFTP
-            then
-              transfer_method="$label"
-              return 0
-            fi
-            echo "$label failed:"
-            cat "$transfer_log"
-            return 1
-          }
-
-          public_host="automaxpos.com"
-          domain_user="$CPANEL_USERNAME@$public_host"
-
-          if attempt_sftp "$CPANEL_HOST" "$CPANEL_USERNAME" ||
-             attempt_sftp "$public_host" "$CPANEL_USERNAME" ||
-             attempt_ftps "$CPANEL_HOST" "$CPANEL_USERNAME" ||
-             attempt_ftps "$public_host" "$CPANEL_USERNAME" ||
-             attempt_ftps "$CPANEL_HOST" "$domain_user" ||
-             attempt_ftps "$public_host" "$domain_user"; then
-            echo "Deployment transfer succeeded using $transfer_method."
-          else
-            echo "::error::All cPanel SFTP/FTPS deployment attempts failed."
-            rm -f "$transfer_log"
-            exit 1
-          fi
 
           cat "$transfer_log"
           rm -f "$transfer_log"
 
           echo "files_uploaded=$files_uploaded" >> "$GITHUB_OUTPUT"
           echo "bytes_uploaded=$bytes_uploaded" >> "$GITHUB_OUTPUT"
-          echo "transfer_method=$transfer_method" >> "$GITHUB_OUTPUT"
+          echo "transfer_method=explicit-ftps:$CPANEL_USERNAME@$CPANEL_HOST:$CPANEL_PORT" >> "$GITHUB_OUTPUT"
+          echo "remote_path=$CPANEL_REMOTE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Verify production website
         shell: bash
@@ -196,7 +147,7 @@ jobs:
             echo "- Branch: \`${{ github.ref_name }}\`"
             echo "- Production URL: https://automaxpos.com"
             echo "- Deployment method: \`${{ steps.deploy.outputs.transfer_method }}\` mirror of local production build"
-            echo "- Remote path: \`${{ secrets.CPANEL_REMOTE_PATH }}\`"
+            echo "- Remote path: \`${{ steps.deploy.outputs.remote_path }}\`"
             echo "- Files uploaded: \`${{ steps.deploy.outputs.files_uploaded }}\`"
             echo "- Bytes uploaded: \`${{ steps.deploy.outputs.bytes_uploaded }}\`"
             echo "- Validation: build, tests, audit, HTTP 200, deployment metadata"
