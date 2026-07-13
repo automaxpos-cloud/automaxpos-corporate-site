@@ -84,7 +84,7 @@ jobs:
           CPANEL_HOST="premium176.web-hosting.com"
           CPANEL_PORT="21"
           CPANEL_SERVER_PATH="/home/autosyyh/public_html"
-          FTPS_REMOTE_PATH="/"
+          FTPS_REMOTE_PATH=""
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
           transfer_log="$(mktemp)"
@@ -94,9 +94,63 @@ jobs:
           echo "Port: $CPANEL_PORT"
           echo "Username: $CPANEL_USERNAME"
           echo "Server path: $CPANEL_SERVER_PATH"
-          echo "FTPS mirror path: $FTPS_REMOTE_PATH"
 
-          lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
+          lftp_base() {
+            lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" "$@"
+          }
+
+          candidates=(
+            "/home/autosyyh/public_html"
+            "/public_html"
+            "/"
+            "/www"
+            "/automaxpos.com"
+            "/public_html/automaxpos.com"
+            "/domains/automaxpos.com/public_html"
+          )
+
+          probe_index=0
+          for candidate in "${candidates[@]}"; do
+            probe_index=$((probe_index + 1))
+            probe_name="automax-deploy-probe-${GITHUB_SHA:0:12}-${probe_index}.txt"
+            probe_file="/tmp/$probe_name"
+            printf 'AutoMax deployment probe\ncommit=%s\ncandidate=%s\n' "$GITHUB_SHA" "$candidate" > "$probe_file"
+            echo "Probing FTPS path: $candidate"
+            if lftp_base >"$transfer_log" 2>&1 <<LFTP
+          set cmd:fail-exit yes
+          set ftp:ssl-force yes
+          set ftp:ssl-protect-data yes
+          set ftp:passive-mode yes
+          set net:max-retries 1
+          set net:timeout 20
+          set ssl:verify-certificate no
+          mkdir -p "$candidate"
+          put -O "$candidate" "$probe_file"
+          bye
+          LFTP
+            then
+              sleep 2
+              probe_status=$(curl --insecure -L -s -o /tmp/automax-probe-response.txt -w "%{http_code}" "https://automaxpos.com/$probe_name")
+              if [ "$probe_status" = "200" ] && grep -q "candidate=$candidate" /tmp/automax-probe-response.txt; then
+                FTPS_REMOTE_PATH="$candidate"
+                echo "Detected live FTPS document root: $FTPS_REMOTE_PATH"
+                break
+              fi
+              echo "Probe not live for $candidate (HTTP $probe_status)."
+            else
+              echo "Probe failed for $candidate:"
+              cat "$transfer_log"
+            fi
+          done
+
+          if [ -z "$FTPS_REMOTE_PATH" ]; then
+            echo "::error::Unable to detect the live FTPS document root for automaxpos.com."
+            rm -f "$transfer_log"
+            exit 1
+          fi
+
+          echo "FTPS mirror path: $FTPS_REMOTE_PATH"
+          lftp_base >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
           set ftp:ssl-force yes
           set ftp:ssl-protect-data yes
