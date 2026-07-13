@@ -83,7 +83,8 @@ jobs:
 
           CPANEL_HOST="premium176.web-hosting.com"
           CPANEL_PORT="21"
-          CPANEL_REMOTE_PATH="/home/autosyyh/public_html"
+          CPANEL_SERVER_PATH="/home/autosyyh/public_html"
+          FTPS_REMOTE_PATH="/"
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
           transfer_log="$(mktemp)"
@@ -92,7 +93,8 @@ jobs:
           echo "Host: $CPANEL_HOST"
           echo "Port: $CPANEL_PORT"
           echo "Username: $CPANEL_USERNAME"
-          echo "Remote path: $CPANEL_REMOTE_PATH"
+          echo "Server path: $CPANEL_SERVER_PATH"
+          echo "FTPS mirror path: $FTPS_REMOTE_PATH"
 
           lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
@@ -102,7 +104,7 @@ jobs:
           set net:max-retries 2
           set net:timeout 30
           set ssl:verify-certificate no
-          mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** dist "$CPANEL_REMOTE_PATH"
+          mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** dist "$FTPS_REMOTE_PATH"
           bye
           LFTP
 
@@ -112,20 +114,21 @@ jobs:
           echo "files_uploaded=$files_uploaded" >> "$GITHUB_OUTPUT"
           echo "bytes_uploaded=$bytes_uploaded" >> "$GITHUB_OUTPUT"
           echo "transfer_method=explicit-ftps:$CPANEL_USERNAME@$CPANEL_HOST:$CPANEL_PORT" >> "$GITHUB_OUTPUT"
-          echo "remote_path=$CPANEL_REMOTE_PATH" >> "$GITHUB_OUTPUT"
+          echo "remote_path=$CPANEL_SERVER_PATH" >> "$GITHUB_OUTPUT"
+          echo "ftps_mirror_path=$FTPS_REMOTE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Verify production website
         shell: bash
         run: |
           set -euo pipefail
-          status=$(curl -L -s -o /tmp/automax-home.html -w "%{http_code}" https://automaxpos.com)
+          status=$(curl --insecure -L -s -o /tmp/automax-home.html -w "%{http_code}" https://automaxpos.com)
           echo "automaxpos.com HTTP status: $status"
           if [ "$status" != "200" ]; then
             echo "::error::https://automaxpos.com returned HTTP $status"
             exit 1
           fi
 
-          meta_status=$(curl -L -s -o /tmp/automax-deployment.json -w "%{http_code}" https://automaxpos.com/deployment.json)
+          meta_status=$(curl --insecure -L -s -o /tmp/automax-deployment.json -w "%{http_code}" https://automaxpos.com/deployment.json)
           echo "deployment.json HTTP status: $meta_status"
           if [ "$meta_status" != "200" ]; then
             echo "::error::https://automaxpos.com/deployment.json returned HTTP $meta_status"
@@ -148,6 +151,7 @@ jobs:
             echo "- Production URL: https://automaxpos.com"
             echo "- Deployment method: \`${{ steps.deploy.outputs.transfer_method }}\` mirror of local production build"
             echo "- Remote path: \`${{ steps.deploy.outputs.remote_path }}\`"
+            echo "- FTPS mirror path: \`${{ steps.deploy.outputs.ftps_mirror_path }}\`"
             echo "- Files uploaded: \`${{ steps.deploy.outputs.files_uploaded }}\`"
             echo "- Bytes uploaded: \`${{ steps.deploy.outputs.bytes_uploaded }}\`"
             echo "- Validation: build, tests, audit, HTTP 200, deployment metadata"
