@@ -99,7 +99,7 @@ jobs:
           echo "Server path: $CPANEL_SERVER_PATH"
           echo "FTPS mirror path: $FTPS_REMOTE_PATH"
 
-          lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
+          if ! lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
           set ftp:ssl-force yes
           set ftp:ssl-protect-data yes
@@ -110,6 +110,11 @@ jobs:
           mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** --exclude-glob owner/ --exclude-glob owner/** --exclude-glob hospitality/ --exclude-glob hospitality/** --exclude-glob cgi-bin/ --exclude-glob cgi-bin/** dist "$FTPS_REMOTE_PATH"
           bye
           LFTP
+          then
+            cat "$transfer_log"
+            rm -f "$transfer_log"
+            exit 1
+          fi
 
           cat "$transfer_log"
           rm -f "$transfer_log"
