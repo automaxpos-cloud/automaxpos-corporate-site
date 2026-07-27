@@ -100,7 +100,7 @@ jobs:
 
           CPANEL_PORT="${CPANEL_PORT:-21}"
           CPANEL_TARGET_FOLDER="/public_html"
-          FTPS_REMOTE_PATH="/"
+          FTPS_REMOTE_PATH="./"
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
           transfer_log="$(mktemp)"
@@ -111,15 +111,21 @@ jobs:
           echo "Username: $CPANEL_USERNAME"
           echo "Remote directory: $CPANEL_TARGET_FOLDER"
           echo "FTPS mirror path from FTP login root: $FTPS_REMOTE_PATH"
+          echo "FTP login root is expected to be the cPanel /public_html directory."
 
           if ! lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
+          set cmd:trace yes
+          set ftp:ssl-allow yes
+          set ftp:ssl-auth TLS
           set ftp:ssl-force yes
           set ftp:ssl-protect-data yes
           set ftp:passive-mode yes
           set net:max-retries 2
           set net:timeout 30
           set ssl:verify-certificate no
+          pwd
+          cls -la
           mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** --exclude-glob owner/ --exclude-glob owner/** --exclude-glob hospitality/ --exclude-glob hospitality/** --exclude-glob cgi-bin/ --exclude-glob cgi-bin/** dist "$FTPS_REMOTE_PATH"
           bye
           LFTP
