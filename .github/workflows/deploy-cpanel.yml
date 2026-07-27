@@ -107,7 +107,7 @@ jobs:
           set net:max-retries 2
           set net:timeout 30
           set ssl:verify-certificate no
-          mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** dist "$FTPS_REMOTE_PATH"
+          mirror --reverse --delete --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** --exclude-glob owner/ --exclude-glob owner/** --exclude-glob hospitality/ --exclude-glob hospitality/** --exclude-glob cgi-bin/ --exclude-glob cgi-bin/** dist "$FTPS_REMOTE_PATH"
           bye
           LFTP
 
