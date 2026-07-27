@@ -127,8 +127,7 @@ jobs:
           set ssl:verify-certificate no
           pwd
           cls -la
-          mirror --reverse --delete --ignore-time --no-perms --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** --exclude-glob owner/ --exclude-glob owner/** --exclude-glob hospitality/ --exclude-glob hospitality/** --exclude-glob cgi-bin/ --exclude-glob cgi-bin/** dist "$FTPS_REMOTE_PATH"
-          cls -l public_html/deployment.json
+          mirror --reverse --delete --ignore-time --no-perms --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** --exclude-glob owner/ --exclude-glob owner/** --exclude-glob hospitality/ --exclude-glob hospitality/** --exclude-glob cgi-bin/ --exclude-glob cgi-bin/** dist/ "$FTPS_REMOTE_PATH"
           cat public_html/deployment.json
           bye
           LFTP
