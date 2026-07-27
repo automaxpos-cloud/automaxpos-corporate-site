@@ -57,6 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           deployed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          version=$(node -p "require('./package.json').version")
           cat > dist/deployment.json <<EOF
           {
             "commit": "${{ github.sha }}",
@@ -64,6 +65,8 @@ jobs:
             "deployed_at": "$deployed_at",
             "repository": "${{ github.repository }}",
             "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "version": "$version",
+            "target_folder": "/public_html",
             "method": "ftps"
           }
           EOF
