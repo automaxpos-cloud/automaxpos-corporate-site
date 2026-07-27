@@ -100,7 +100,7 @@ jobs:
 
           CPANEL_PORT="${CPANEL_PORT:-21}"
           CPANEL_TARGET_FOLDER="/public_html"
-          FTPS_REMOTE_PATH="public_html/"
+          FTPS_REMOTE_PATH="./"
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
           transfer_log="$(mktemp)"
@@ -111,7 +111,7 @@ jobs:
           echo "Username: $CPANEL_USERNAME"
           echo "Remote directory: $CPANEL_TARGET_FOLDER"
           echo "FTPS mirror path from FTP login root: $FTPS_REMOTE_PATH"
-          echo "FTP login root is expected to contain the cPanel public_html directory."
+          echo "FTP login root is the active corporate web root for automaxpos.com."
 
           if ! lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
@@ -128,7 +128,7 @@ jobs:
           pwd
           cls -la
           mirror --reverse --delete --ignore-time --no-perms --verbose --exclude-glob .htaccess --exclude-glob .well-known/ --exclude-glob .well-known/** --exclude-glob owner/ --exclude-glob owner/** --exclude-glob hospitality/ --exclude-glob hospitality/** --exclude-glob cgi-bin/ --exclude-glob cgi-bin/** dist/ "$FTPS_REMOTE_PATH"
-          cat public_html/deployment.json
+          cat deployment.json
           bye
           LFTP
           then
