@@ -38,11 +38,14 @@ jobs:
       - name: Validate cPanel FTPS secrets
         shell: bash
         env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
           CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
           CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
         run: |
+          set -euo pipefail
           missing=0
-          for name in CPANEL_USERNAME CPANEL_PASSWORD; do
+          for name in CPANEL_HOST CPANEL_USERNAME CPANEL_PASSWORD; do
             if [ -z "${!name}" ]; then
               echo "::error::$name GitHub Actions secret is required for production FTPS deployment."
               missing=1
@@ -51,6 +54,15 @@ jobs:
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
+          CPANEL_PORT="${CPANEL_PORT:-21}"
+          if [ "$CPANEL_PORT" != "21" ]; then
+            echo "::warning::CPANEL_PORT is set to '$CPANEL_PORT'. AutoMax cPanel production normally uses explicit FTPS on port 21."
+          fi
+          echo "Deployment target: AutoMax POS Corporate Website"
+          echo "FTP host: $CPANEL_HOST"
+          echo "FTP port: $CPANEL_PORT"
+          echo "Username: $CPANEL_USERNAME"
+          echo "Remote directory: /public_html"
 
       - name: Write deployment metadata
         shell: bash
@@ -79,25 +91,26 @@ jobs:
         id: deploy
         shell: bash
         env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
           CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
           CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
         run: |
           set -euo pipefail
 
-          CPANEL_HOST="premium176.web-hosting.com"
-          CPANEL_PORT="21"
-          CPANEL_SERVER_PATH="/home/autosyyh/public_html"
+          CPANEL_PORT="${CPANEL_PORT:-21}"
+          CPANEL_TARGET_FOLDER="/public_html"
           FTPS_REMOTE_PATH="/"
           files_uploaded=$(find dist -type f | wc -l | tr -d ' ')
           bytes_uploaded=$(du -sb dist | awk '{print $1}')
           transfer_log="$(mktemp)"
 
-          echo "Deploying production build via explicit FTPS."
-          echo "Host: $CPANEL_HOST"
-          echo "Port: $CPANEL_PORT"
+          echo "Deployment target: AutoMax POS Corporate Website"
+          echo "FTP host: $CPANEL_HOST"
+          echo "FTP port: $CPANEL_PORT"
           echo "Username: $CPANEL_USERNAME"
-          echo "Server path: $CPANEL_SERVER_PATH"
-          echo "FTPS mirror path: $FTPS_REMOTE_PATH"
+          echo "Remote directory: $CPANEL_TARGET_FOLDER"
+          echo "FTPS mirror path from FTP login root: $FTPS_REMOTE_PATH"
 
           if ! lftp -u "$CPANEL_USERNAME","$CPANEL_PASSWORD" -p "$CPANEL_PORT" "ftp://$CPANEL_HOST" >"$transfer_log" 2>&1 <<LFTP
           set cmd:fail-exit yes
@@ -122,7 +135,7 @@ jobs:
           echo "files_uploaded=$files_uploaded" >> "$GITHUB_OUTPUT"
           echo "bytes_uploaded=$bytes_uploaded" >> "$GITHUB_OUTPUT"
           echo "transfer_method=explicit-ftps:$CPANEL_USERNAME@$CPANEL_HOST:$CPANEL_PORT" >> "$GITHUB_OUTPUT"
-          echo "remote_path=$CPANEL_SERVER_PATH" >> "$GITHUB_OUTPUT"
+          echo "remote_path=$CPANEL_TARGET_FOLDER" >> "$GITHUB_OUTPUT"
           echo "ftps_mirror_path=$FTPS_REMOTE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Verify production website
